@@ -45,11 +45,15 @@ def setup_recording_commands(bot):
                     vc = await asyncio.wait_for(voice_channel.connect(reconnect=False), timeout=8.0)
                     bot.voice_connections[ctx.guild.id] = vc
                     
-                    # Start recording
-                    await bot.audio_recorder.start_recording(vc, ctx.guild.id)
+                    # Wait a moment for the connection to stabilize
+                    await asyncio.sleep(0.5)
                     
-                    await ctx.followup.send(f"🎙️ Started recording in {voice_channel.name}!", ephemeral=True)
-                    logger.info(f"Started recording in {voice_channel.name} (Guild: {ctx.guild.id})")
+                    # Just connect for now - don't start recording yet
+                    if not vc.is_connected():
+                        raise discord.errors.ConnectionClosed(None, code=4006)
+                    
+                    await ctx.followup.send(f"✅ Connected to {voice_channel.name}! Use /start_recording to begin.", ephemeral=True)
+                    logger.info(f"Connected to {voice_channel.name} (Guild: {ctx.guild.id})")
                     return  # Success!
                     
                 except (asyncio.TimeoutError, discord.errors.ConnectionClosed) as e:
@@ -87,6 +91,31 @@ def setup_recording_commands(bot):
             if "4006" in error_msg:
                 error_msg = "Voice connection failed. This may be a Discord server issue. Try again in a moment."
             await ctx.respond(f"❌ Failed to start recording: {error_msg}", ephemeral=True)
+    
+    @bot.slash_command(description="Start recording audio")
+    async def start_recording(ctx: discord.ApplicationContext):
+        """Start recording in the connected voice channel."""
+        if ctx.guild.id not in bot.voice_connections:
+            await ctx.respond("❌ Not connected to a voice channel! Use /join first.", ephemeral=True)
+            return
+        
+        if bot.audio_recorder.is_recording:
+            await ctx.respond("❌ Already recording!", ephemeral=True)
+            return
+        
+        try:
+            vc = bot.voice_connections[ctx.guild.id]
+            if not vc.is_connected():
+                await ctx.respond("❌ Voice connection lost. Use /join again.", ephemeral=True)
+                return
+            
+            await bot.audio_recorder.start_recording(vc, ctx.guild.id)
+            await ctx.respond("🎙️ Recording started!", ephemeral=True)
+            logger.info(f"Recording started in guild {ctx.guild.id}")
+            
+        except Exception as e:
+            logger.error(f"Failed to start recording: {e}")
+            await ctx.respond(f"❌ Failed to start recording: {str(e)}", ephemeral=True)
     
     @bot.slash_command(description="Stop recording and process audio")
     async def stop(ctx: discord.ApplicationContext):
