@@ -6,7 +6,7 @@ readme = "README.md"
 authors = [
     { name = "chrimage", email = "john.chris.smith@gmail.com" }
 ]
-requires-python = ">=3.12"
+requires-python = "==3.12.*"
 dependencies = [
     "py-cord[voice]>=2.6.0",
     "fastapi>=0.104.0",
