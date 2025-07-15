@@ -34,6 +34,14 @@ def setup_recording_commands(bot):
             for attempt in range(max_attempts):
                 try:
                     logger.info(f"Voice connection attempt {attempt + 1}/{max_attempts}")
+                    
+                    # Clean up any existing connection first
+                    if ctx.guild.id in bot.voice_connections:
+                        old_vc = bot.voice_connections[ctx.guild.id]
+                        if old_vc.is_connected():
+                            await old_vc.disconnect()
+                        del bot.voice_connections[ctx.guild.id]
+                    
                     vc = await asyncio.wait_for(voice_channel.connect(reconnect=False), timeout=8.0)
                     bot.voice_connections[ctx.guild.id] = vc
                     
@@ -46,6 +54,17 @@ def setup_recording_commands(bot):
                     
                 except (asyncio.TimeoutError, discord.errors.ConnectionClosed) as e:
                     logger.warning(f"Voice connection attempt {attempt + 1} failed: {e}")
+                    
+                    # Clean up failed connection
+                    if ctx.guild.id in bot.voice_connections:
+                        try:
+                            old_vc = bot.voice_connections[ctx.guild.id]
+                            if old_vc.is_connected():
+                                await old_vc.disconnect()
+                        except:
+                            pass
+                        del bot.voice_connections[ctx.guild.id]
+                    
                     if attempt < max_attempts - 1:
                         await asyncio.sleep(2)  # Wait before retry
                         continue
