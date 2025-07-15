@@ -29,24 +29,35 @@ def setup_recording_commands(bot):
             voice_channel = ctx.author.voice.channel
             await ctx.respond("🔄 Connecting to voice channel...", ephemeral=True)
             
-            # Try to connect with timeout
-            try:
-                vc = await asyncio.wait_for(voice_channel.connect(), timeout=15.0)
-                bot.voice_connections[ctx.guild.id] = vc
-                
-                # Start recording
-                await bot.audio_recorder.start_recording(vc, ctx.guild.id)
-                
-                await ctx.followup.send(f"🎙️ Started recording in {voice_channel.name}!", ephemeral=True)
-                logger.info(f"Started recording in {voice_channel.name} (Guild: {ctx.guild.id})")
-                
-            except asyncio.TimeoutError:
-                await ctx.followup.send("❌ Voice connection timed out. This might be a network issue.", ephemeral=True)
-                logger.error("Voice connection timed out")
-                
-            except discord.errors.ConnectionClosed as e:
-                await ctx.followup.send(f"❌ Voice connection failed (Discord error {e.code}). Try again in a moment.", ephemeral=True)
-                logger.error(f"Voice connection closed: {e}")
+            # Try to connect with multiple attempts and shorter timeout
+            max_attempts = 3
+            for attempt in range(max_attempts):
+                try:
+                    logger.info(f"Voice connection attempt {attempt + 1}/{max_attempts}")
+                    vc = await asyncio.wait_for(voice_channel.connect(reconnect=False), timeout=8.0)
+                    bot.voice_connections[ctx.guild.id] = vc
+                    
+                    # Start recording
+                    await bot.audio_recorder.start_recording(vc, ctx.guild.id)
+                    
+                    await ctx.followup.send(f"🎙️ Started recording in {voice_channel.name}!", ephemeral=True)
+                    logger.info(f"Started recording in {voice_channel.name} (Guild: {ctx.guild.id})")
+                    return  # Success!
+                    
+                except (asyncio.TimeoutError, discord.errors.ConnectionClosed) as e:
+                    logger.warning(f"Voice connection attempt {attempt + 1} failed: {e}")
+                    if attempt < max_attempts - 1:
+                        await asyncio.sleep(2)  # Wait before retry
+                        continue
+                    else:
+                        # All attempts failed
+                        await ctx.followup.send(
+                            "❌ Voice connection failed after multiple attempts. "
+                            "This is likely a server network issue. "
+                            "Try changing your Discord server's voice region or contact your hosting provider.",
+                            ephemeral=True
+                        )
+                        logger.error("All voice connection attempts failed")
                 
         except Exception as e:
             logger.error(f"Failed to start recording: {e}")
