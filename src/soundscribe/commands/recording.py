@@ -1,5 +1,6 @@
 """Recording-related slash commands."""
 
+import asyncio
 import logging
 import discord
 from discord.ext import commands
@@ -26,18 +27,33 @@ def setup_recording_commands(bot):
         try:
             # Connect to voice channel
             voice_channel = ctx.author.voice.channel
-            vc = await voice_channel.connect()
-            bot.voice_connections[ctx.guild.id] = vc
+            await ctx.respond("🔄 Connecting to voice channel...", ephemeral=True)
             
-            # Start recording
-            await bot.audio_recorder.start_recording(vc, ctx.guild.id)
-            
-            await ctx.respond(f"🎙️ Started recording in {voice_channel.name}!", ephemeral=True)
-            logger.info(f"Started recording in {voice_channel.name} (Guild: {ctx.guild.id})")
-            
+            # Try to connect with timeout
+            try:
+                vc = await asyncio.wait_for(voice_channel.connect(), timeout=15.0)
+                bot.voice_connections[ctx.guild.id] = vc
+                
+                # Start recording
+                await bot.audio_recorder.start_recording(vc, ctx.guild.id)
+                
+                await ctx.followup.send(f"🎙️ Started recording in {voice_channel.name}!", ephemeral=True)
+                logger.info(f"Started recording in {voice_channel.name} (Guild: {ctx.guild.id})")
+                
+            except asyncio.TimeoutError:
+                await ctx.followup.send("❌ Voice connection timed out. This might be a network issue.", ephemeral=True)
+                logger.error("Voice connection timed out")
+                
+            except discord.errors.ConnectionClosed as e:
+                await ctx.followup.send(f"❌ Voice connection failed (Discord error {e.code}). Try again in a moment.", ephemeral=True)
+                logger.error(f"Voice connection closed: {e}")
+                
         except Exception as e:
             logger.error(f"Failed to start recording: {e}")
-            await ctx.respond(f"❌ Failed to start recording: {str(e)}", ephemeral=True)
+            error_msg = str(e)
+            if "4006" in error_msg:
+                error_msg = "Voice connection failed. This may be a Discord server issue. Try again in a moment."
+            await ctx.respond(f"❌ Failed to start recording: {error_msg}", ephemeral=True)
     
     @bot.slash_command(description="Stop recording and process audio")
     async def stop(ctx: discord.ApplicationContext):
