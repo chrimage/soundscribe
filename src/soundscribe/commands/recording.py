@@ -42,13 +42,13 @@ def setup_recording_commands(bot):
                     if ctx.guild.id in bot.voice_connections:
                         del bot.voice_connections[ctx.guild.id]
                     
-                    vc = await asyncio.wait_for(voice_channel.connect(reconnect=False), timeout=8.0)
+                    # Try the most basic connection possible
+                    vc = await voice_channel.connect()
                     bot.voice_connections[ctx.guild.id] = vc
                     
-                    # Wait a moment for the connection to stabilize
-                    await asyncio.sleep(0.5)
+                    # Just test if we can stay connected for 2 seconds
+                    await asyncio.sleep(2.0)
                     
-                    # Just connect for now - don't start recording yet
                     if not vc.is_connected():
                         raise discord.errors.ConnectionClosed(None, code=4006)
                     
