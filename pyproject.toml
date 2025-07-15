@@ -1,0 +1,24 @@
+[project]
+name = "soundscribe"
+version = "0.1.0"
+description = "Discord bot for recording multi-speaker voice conversations with automatic mixing and secure download delivery"
+readme = "README.md"
+authors = [
+    { name = "chrimage", email = "john.chris.smith@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "py-cord[voice]>=2.6.0",
+    "fastapi>=0.104.0",
+    "uvicorn>=0.24.0",
+    "aiofiles>=23.2.0",
+    "python-multipart>=0.0.6",
+    "python-dotenv>=1.0.0",
+]
+
+[project.scripts]
+soundscribe = "soundscribe:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
