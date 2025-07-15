@@ -50,13 +50,13 @@ def setup_recording_commands(bot):
                     await asyncio.sleep(2.0)
                     
                     if not vc.is_connected():
-                        raise discord.errors.ConnectionClosed(None, code=4006)
+                        raise RuntimeError("Voice connection lost after establishing")
                     
                     await ctx.followup.send(f"✅ Connected to {voice_channel.name}! Use /start_recording to begin.", ephemeral=True)
                     logger.info(f"Connected to {voice_channel.name} (Guild: {ctx.guild.id})")
                     return  # Success!
                     
-                except (asyncio.TimeoutError, discord.errors.ConnectionClosed) as e:
+                except (asyncio.TimeoutError, discord.errors.ConnectionClosed, RuntimeError) as e:
                     logger.warning(f"Voice connection attempt {attempt + 1} failed: {e}")
                     
                     # Clean up failed connection more aggressively
